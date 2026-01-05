@@ -4,9 +4,10 @@
 
 #include "hash_table.h"
 
-#define HT_PRIME_1 151;
-#define HT_PRIME_2 163;
+#define HT_PRIME_1 151
+#define HT_PRIME_2 163
 
+static ht_item HT_DELETED_ITEM = {NULL, NULL};
 
 static ht_item* ht_new_item(const char* k, const char* v) {
   ht_item* i = malloc(sizeof(ht_item));
@@ -56,4 +57,60 @@ static int ht_get_hash(const char* s, const int num_buckets, const int attempt) 
   const int hash_a = ht_hash(s, HT_PRIME_1, num_buckets);
   const int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
   return (hash_a + (attempt * (hash_b + 1))) % num_buckets;
+}
+
+void ht_insert(ht_hash_table* ht, const char* key, const char* value) {
+  ht_item* item = ht_new_item(key, value);
+  int idx = ht_get_hash(item->key, ht->size, 0);
+  ht_item* cur_item = ht->items[idx];
+  int attempts = 1;
+  while (cur_item != NULL) {
+    if (cur_item != &HT_DELETED_ITEM) {
+      if (strcmp(cur_item->key, key) == 0) {
+        ht_del_item(cur_item);
+        ht->items[idx] = item;
+        return;
+      }
+    }
+    idx = ht_get_hash(item->key, ht->size, attempts);
+    cur_item = ht->items[idx];
+    attempts++;
+  }
+  ht->items[idx] = item;
+  ht->count++;
+}
+
+char* ht_search(ht_hash_table* ht, const char* key) {
+  int idx = ht_get_hash(key, ht->size, 0);
+  ht_item* item = ht->items[idx];
+  int attempts = 1;
+  while (item != NULL) {
+    if (item != &HT_DELETED_ITEM) {
+      if (strcmp(item->key, key) == 0) {
+        return item->value;
+      }
+    }
+    idx = ht_get_hash(key, ht->size, attempts);
+    item = ht->items[idx];
+    attempts++;
+  }
+  return NULL;
+}
+
+void ht_delete(ht_hash_table* ht, const char* key) {
+  int idx = ht_get_hash(key, ht->size, 0);
+  ht_item* item = ht->items[idx];
+  int attempts = 1;
+  while (item != NULL) {
+    if (item != &HT_DELETED_ITEM) {
+      if (strcmp(item->key, key) == 0) {
+        ht_del_item(item);
+        ht->items[idx] = &HT_DELETED_ITEM;
+      }
+    }
+    idx = ht_get_hash(key, ht->size, attempts);
+    item = ht->items[idx];
+    attempts++;
+  }
+  ht->count--;
 }
